@@ -6,7 +6,7 @@ namespace Rive.Components
     /// <summary>
     /// A RawImage that can display Rive content. Also used to display Rive content in the editor.
     /// </summary>
-    internal class CanvasRendererRawImage : RawImage
+    public class CanvasRendererRawImage : RawImage
     {
 #if UNITY_EDITOR
         private Texture m_editorPreviewTexture;
