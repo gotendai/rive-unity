@@ -35,7 +35,7 @@ namespace Rive.Components.Utilities
 
 
         private Artboard m_artboard;
-        private StateMachine m_stateMachine;
+        private StateMachineController m_stateMachineController;
         private File m_file;
         private ArtboardRenderObject m_renderObject;
 
@@ -50,7 +50,16 @@ namespace Rive.Components.Utilities
 
 
         public Artboard Artboard => m_artboard;
-        public StateMachine StateMachine => m_stateMachine;
+        
+        /// <summary>
+        /// The primary state machine that's used for default behaviors
+        /// </summary>
+        public StateMachine StateMachine => m_stateMachineController?.PrimaryStateMachine;
+        
+        /// <summary>
+        /// The state machine controller managing all state machines
+        /// </summary>
+        public StateMachineController StateMachineController => m_stateMachineController;
 
         public File File { get => m_file; }
 
@@ -100,49 +109,41 @@ namespace Rive.Components.Utilities
             originalArtboardWidth = m_artboard.Width;
             originalArtboardHeight = m_artboard.Height;
 
-            m_stateMachine = string.IsNullOrEmpty(stateMachineName) ? m_artboard.StateMachine(0) : m_artboard.StateMachine(stateMachineName);
-
-            if (m_stateMachine == null)
+            // Create the state machine controller
+            m_stateMachineController = new StateMachineController();
+            m_stateMachineController.Initialize(m_artboard, stateMachineName);
+            
+            // Check if we have a valid primary state machine
+            if (m_stateMachineController.PrimaryStateMachine == null)
             {
                 HandleLoadError(new LoadErrorEventData(LoadErrorType.StateMachineNotFound, $"State machine {stateMachineName} not found in artboard {artboardName}"));
                 return;
             }
+            
+            // Subscribe to events
+            m_stateMachineController.OnRiveEventReported += HandleRiveEventReported;
 
             m_renderObject = CreateRenderObject(m_artboard, alignment, fit, scaleFactor);
-
-            // Advance the state machine to ensure that inputs work immediately after loading
-            m_stateMachine.Advance(0f);
+            
+            // Advance the primary state machine to ensure that inputs work immediately after loading
+            m_stateMachineController.PrimaryStateMachine.Advance(0f);
             HandleLoadComplete();
         }
 
-
+        private void HandleRiveEventReported(ReportedEvent report, string stateMachineName)
+        {
+            OnRiveEventReported?.Invoke(report);
+        }
 
         public void Tick(float deltaTime, RiveWidget.EventPoolingMode poolingMode)
         {
-            if (m_stateMachine == null)
+            if (m_stateMachineController == null)
             {
                 return;
             }
-
-            m_reportedEvents.Clear();
-
-
-            m_stateMachine.ReportedEvents(m_reportedEvents);
-
-
-            for (int i = 0; i < m_reportedEvents.Count; i++)
-            {
-                var evt = m_reportedEvents[i];
-                OnRiveEventReported?.Invoke(evt);
-
-                // If pooling is enabled, auto-dispose the event
-                if (poolingMode == RiveWidget.EventPoolingMode.Enabled)
-                {
-                    evt.Dispose();
-                }
-            }
-
-            m_stateMachine.Advance(deltaTime);
+            
+            // Let the state machine controller handle ticking all state machines
+            m_stateMachineController.Tick(deltaTime, poolingMode);
         }
 
 
@@ -163,12 +164,15 @@ namespace Rive.Components.Utilities
 
         private void CleanUpBeforeLoad()
         {
+            if (m_stateMachineController != null)
+            {
+                m_stateMachineController.OnRiveEventReported -= HandleRiveEventReported;
+                m_stateMachineController.Dispose();
+                m_stateMachineController = null;
+            }
+            
             m_artboard = null;
-            m_stateMachine = null;
-
-
             m_file = null;
-
         }
 
         private void HandleLoadComplete()
@@ -282,7 +286,15 @@ namespace Rive.Components.Utilities
 
         public void Dispose()
         {
-            CleanUpBeforeLoad();
+            if (m_stateMachineController != null)
+            {
+                m_stateMachineController.OnRiveEventReported -= HandleRiveEventReported;
+                m_stateMachineController.Dispose();
+                m_stateMachineController = null;
+            }
+            
+            m_artboard = null;
+            m_file = null;
             m_renderObject = null;
         }
     }

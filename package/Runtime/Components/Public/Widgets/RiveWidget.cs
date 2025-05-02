@@ -7,6 +7,7 @@ using Rive.EditorTools;
 using Rive.Utils;
 using UnityEngine;
 using UnityEngine.Events;
+using System.Collections.Generic;
 
 namespace Rive.Components
 {
@@ -211,6 +212,117 @@ namespace Rive.Components
         /// </summary>
         public StateMachine StateMachine { get => Controller?.StateMachine; }
 
+        /// <summary>
+        /// The state machine controller that manages all loaded state machines.
+        /// </summary>
+        public StateMachineController StateMachineController { get => Controller?.StateMachineController; }
+
+        /// <summary>
+        /// Gets a list of all loaded state machine names.
+        /// </summary>
+        public List<string> GetStateMachineNames()
+        {
+            return StateMachineController?.GetStateMachineNames() ?? new List<string>();
+        }
+
+        /// <summary>
+        /// Loads a state machine by name and returns it.
+        /// </summary>
+        /// <param name="stateMachineName">The name of the state machine to load.</param>
+        /// <returns>The loaded state machine, or null if it couldn't be loaded.</returns>
+        public StateMachine LoadStateMachine(string stateMachineName)
+        {
+            if (StateMachineController == null || Artboard == null)
+            {
+                DebugLogger.Instance.LogError("Cannot load state machine: widget is not properly initialized.");
+                return null;
+            }
+            
+            return StateMachineController.LoadStateMachine(stateMachineName);
+        }
+
+        /// <summary>
+        /// Gets a state machine by name.
+        /// </summary>
+        /// <param name="stateMachineName">The name of the state machine to get.</param>
+        /// <returns>The state machine, or null if it doesn't exist.</returns>
+        public StateMachine GetStateMachine(string stateMachineName)
+        {
+            if (StateMachineController == null)
+            {
+                return null;
+            }
+            
+            return StateMachineController.GetStateMachine(stateMachineName);
+        }
+
+        /// <summary>
+        /// Sets a boolean input on a specific state machine.
+        /// </summary>
+        /// <param name="stateMachineName">The name of the state machine.</param>
+        /// <param name="inputName">The name of the input.</param>
+        /// <param name="value">The value to set.</param>
+        /// <returns>True if successful, false otherwise.</returns>
+        public bool SetBooleanInput(string stateMachineName, string inputName, bool value)
+        {
+            if (StateMachineController == null)
+            {
+                DebugLogger.Instance.LogError("Cannot set boolean input: widget is not properly initialized.");
+                return false;
+            }
+            
+            return StateMachineController.SetBooleanInput(stateMachineName, inputName, value);
+        }
+
+        /// <summary>
+        /// Sets a number input on a specific state machine.
+        /// </summary>
+        /// <param name="stateMachineName">The name of the state machine.</param>
+        /// <param name="inputName">The name of the input.</param>
+        /// <param name="value">The value to set.</param>
+        /// <returns>True if successful, false otherwise.</returns>
+        public bool SetNumberInput(string stateMachineName, string inputName, float value)
+        {
+            if (StateMachineController == null)
+            {
+                DebugLogger.Instance.LogError("Cannot set number input: widget is not properly initialized.");
+                return false;
+            }
+            
+            return StateMachineController.SetNumberInput(stateMachineName, inputName, value);
+        }
+
+        /// <summary>
+        /// Fires a trigger input on a specific state machine.
+        /// </summary>
+        /// <param name="stateMachineName">The name of the state machine.</param>
+        /// <param name="inputName">The name of the input.</param>
+        /// <returns>True if successful, false otherwise.</returns>
+        public bool FireInput(string stateMachineName, string inputName)
+        {
+            if (StateMachineController == null)
+            {
+                DebugLogger.Instance.LogError("Cannot fire input: widget is not properly initialized.");
+                return false;
+            }
+            
+            return StateMachineController.FireInput(stateMachineName, inputName);
+        }
+
+        /// <summary>
+        /// Load all available state machines from the current artboard.
+        /// This is useful when you want to control multiple state machines.
+        /// </summary>
+        public void LoadAllStateMachines()
+        {
+            if (StateMachineController == null || Artboard == null)
+            {
+                DebugLogger.Instance.LogError("Cannot load all state machines: widget is not properly initialized.");
+                return;
+            }
+            
+            StateMachineController.LoadAllStateMachines();
+        }
 
         public Fit Fit
         {
@@ -349,6 +461,11 @@ namespace Rive.Components
         /// </summary>
         public event Action<ReportedEvent> OnRiveEventReported;
 
+        /// <summary>
+        /// Event that is triggered when a Rive event is reported, including the name of the state machine that triggered it.
+        /// </summary>
+        public event Action<ReportedEvent, string> OnRiveEventReportedWithStateMachine;
+
 
 
         private Asset m_fileLoadedFromAsset = null;
@@ -396,6 +513,11 @@ namespace Rive.Components
             controller.OnLoadProcessComplete += HandleLoadComplete;
             controller.OnLoadError += HandleLoadError;
             controller.OnRiveEventReported += HandleRiveEventReported;
+            
+            if (controller.StateMachineController != null)
+            {
+                controller.StateMachineController.OnRiveEventReported += HandleRiveEventReportedWithStateMachine;
+            }
         }
         private void UnsubscribeFromControllerEvents(ArtboardLoadHelper controller)
         {
@@ -406,12 +528,21 @@ namespace Rive.Components
             controller.OnLoadProcessComplete -= HandleLoadComplete;
             controller.OnLoadError -= HandleLoadError;
             controller.OnRiveEventReported -= HandleRiveEventReported;
-
+            
+            if (controller.StateMachineController != null)
+            {
+                controller.StateMachineController.OnRiveEventReported -= HandleRiveEventReportedWithStateMachine;
+            }
         }
 
         private void HandleRiveEventReported(ReportedEvent report)
         {
             OnRiveEventReported?.Invoke(report);
+        }
+
+        private void HandleRiveEventReportedWithStateMachine(ReportedEvent report, string stateMachineName)
+        {
+            OnRiveEventReportedWithStateMachine?.Invoke(report, stateMachineName);
         }
 
         private void HandleLoadError(ArtboardLoadHelper.LoadErrorEventData eventData)
