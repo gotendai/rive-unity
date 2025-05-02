@@ -6,7 +6,7 @@ using UnityEngine;
 namespace Rive.EditorTools
 {
     [CustomEditor(typeof(RiveWidget))]
-    public class RiveWidgetEditor : Editor
+    internal class RiveWidgetCustomEditor : Editor
     {
         private RiveWidget m_widget;
         private bool m_showStateMachines = false;
@@ -18,7 +18,8 @@ namespace Rive.EditorTools
         
         public override void OnInspectorGUI()
         {
-            base.OnInspectorGUI();
+            // Draw the default inspector
+            DrawDefaultInspector();
             
             if (!Application.isPlaying || m_widget == null || m_widget.Artboard == null)
             {

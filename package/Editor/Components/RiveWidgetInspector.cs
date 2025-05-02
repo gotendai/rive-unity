@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Rive.EditorTools
 {
-    [CustomEditor(typeof(WidgetBehaviour), true)]
+    [CustomEditor(typeof(WidgetBehaviour), false)]
     internal class RiveWidgetInspector : RiveBaseEditor
     {
 
